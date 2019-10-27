@@ -3,6 +3,7 @@ package main
 import (
 	"expvar"
 	"flag"
+	"fmt"
 	"log"
 
 	"github.com/valyala/fasthttp"
@@ -46,6 +47,7 @@ func main() {
 	requestHandler := func(ctx *fasthttp.RequestCtx) {
 		switch string(ctx.Path()) {
 		case "/stats":
+			fmt.Println(string(ctx.Path()))
 			expvarhandler.ExpvarHandler(ctx)
 		case "/status-app":
 			fsHandler(ctx)
