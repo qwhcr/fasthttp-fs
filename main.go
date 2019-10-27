@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/valyala/fasthttp"
 	"github.com/valyala/fasthttp/expvarhandler"
@@ -45,18 +46,16 @@ func main() {
 	//   * /stats?r=fs will show only stats (expvars) containing 'fs'
 	//     in their names.
 	requestHandler := func(ctx *fasthttp.RequestCtx) {
-		switch string(ctx.Path()) {
-		case "/stats":
-			fmt.Println(string(ctx.Path()))
-			expvarhandler.ExpvarHandler(ctx)
-		case "/status-app":
+		match, _ := regexp.MatchString("^/status-app/", string(ctx.Path()))
+		if match {
 			fsHandler(ctx)
-		default:
-			log.Fatal(string(ctx.Path()))
-			log.Fatalf("Miss")
-			// fsHandler(ctx)
-			// updateFSCounters(ctx)
+		} else if string(ctx.Path()) == "/status-app/stats" {
+			fmt.Println(string(ctx.RequestURI()))
+			expvarhandler.ExpvarHandler(ctx)
+		} else {
+			fmt.Println("Not found" + string(ctx.Path()))
 		}
+
 	}
 
 	// Start HTTP server.
