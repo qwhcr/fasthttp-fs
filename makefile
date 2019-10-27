@@ -1,7 +1,7 @@
 clean: checkapp
 	sudo rm -r ./apps/$(APP)
 
-deploy: checkapp $(APP) build move cleanup
+deploy: checkapp $(APP) move cleanup
 
 status-app:
 	@echo pulling from git...
