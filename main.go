@@ -1,14 +1,10 @@
 package main
 
 import (
-	"expvar"
 	"flag"
-	"fmt"
 	"log"
-	"regexp"
 
 	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/expvarhandler"
 )
 
 var (
@@ -39,23 +35,8 @@ func main() {
 		fs.PathRewrite = fasthttp.NewVHostPathRewriter(0)
 	}
 	fsHandler := fs.NewRequestHandler()
-	// Create RequestHandler serving server stats on /stats and files
-	// on other requested paths.
-	// /stats output may be filtered using regexps. For example:
-	//
-	//   * /stats?r=fs will show only stats (expvars) containing 'fs'
-	//     in their names.
 	requestHandler := func(ctx *fasthttp.RequestCtx) {
-		match, _ := regexp.MatchString("^/status-app/", string(ctx.Path()))
-		if match {
-			fsHandler(ctx)
-		} else if string(ctx.Path()) == "/status-app/stats" {
-			fmt.Println(string(ctx.RequestURI()))
-			expvarhandler.ExpvarHandler(ctx)
-		} else {
-			fmt.Println("Not found" + string(ctx.Path()))
-		}
-
+		fsHandler(ctx)
 	}
 
 	// Start HTTP server.
@@ -67,54 +48,6 @@ func main() {
 			}
 		}()
 	}
-
-	// Start HTTPS server.
-	if len(*addrTLS) > 0 {
-		log.Printf("Starting HTTPS server on %q", *addrTLS)
-		go func() {
-			if err := fasthttp.ListenAndServeTLS(*addrTLS, *certFile, *keyFile, requestHandler); err != nil {
-				log.Fatalf("error in ListenAndServeTLS: %s", err)
-			}
-		}()
-	}
-
-	log.Printf("Serving files from directory %q", *dir)
-	log.Printf("See stats at http://%s/stats", *addr)
-
 	// Wait forever.
 	select {}
 }
-
-func updateFSCounters(ctx *fasthttp.RequestCtx) {
-	// Increment the number of fsHandler calls.
-	fsCalls.Add(1)
-
-	// Update other stats counters
-	resp := &ctx.Response
-	switch resp.StatusCode() {
-	case fasthttp.StatusOK:
-		fsOKResponses.Add(1)
-		fsResponseBodyBytes.Add(int64(resp.Header.ContentLength()))
-	case fasthttp.StatusNotModified:
-		fsNotModifiedResponses.Add(1)
-	case fasthttp.StatusNotFound:
-		fsNotFoundResponses.Add(1)
-	default:
-		fsOtherResponses.Add(1)
-	}
-}
-
-// Various counters - see https://golang.org/pkg/expvar/ for details.
-var (
-	// Counter for total number of fs calls
-	fsCalls = expvar.NewInt("fsCalls")
-
-	// Counters for various response status codes
-	fsOKResponses          = expvar.NewInt("fsOKResponses")
-	fsNotModifiedResponses = expvar.NewInt("fsNotModifiedResponses")
-	fsNotFoundResponses    = expvar.NewInt("fsNotFoundResponses")
-	fsOtherResponses       = expvar.NewInt("fsOtherResponses")
-
-	// Total size in bytes for OK response bodies served.
-	fsResponseBodyBytes = expvar.NewInt("fsResponseBodyBytes")
-)
